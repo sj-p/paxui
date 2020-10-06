@@ -1,0 +1,37 @@
+Q: What is Paxui?
+A: Paxui is a program for visualisation & manipulation of audio streams within a pulseaudio server on a GNU/Linux desktop. It facillitates moving streams to a different source or sink, adding/removing loopback modules or null-sinks, adjusting the level of a stream or muting it.
+
+Q: What ISN'T Paxui?
+A: Paxui is not a full-featured pulseaudio configuration tool. You'll still need pavucontrol, pacmd, pactl and the like for some things, but hopefully Paxui will make performing some tasks a little easier.
+
+Q: How do I build Paxui?
+A: Paxui is written in C, so you'll need a working C compiler. You'll need to have glib-2.0, gtk+-3, libpulse & libpulse-mainloop-glib installed, including development packages if your distro separates them. There's no configure script, just a simple Makefile that ought to work for most standard installs: run command 'make' then you can use 'paxui' from the build directory. If you use a non-standard setup, you'll have to adjust the Makefile accordingly.
+
+Q: How do I use Paxui?
+A: To move the input to a module or client to a different source, drag'n'drop its source-output onto the new source. To move the output of a module or client to a different sink, drag'n'drop its sink-input onto the new sink.
+You can reorder items within columns 'Sources', 'Modules & Clients' and 'Sinks' by dragging one item onto another (you can't drop onto blank space). Towards the left of the header bar is a button that cycles through 3 layout modes: choose whichever suits you best.
+Right-clicking on things will show options regarding adding/removing loopbacks & null-sinks. Many items on the display have a volume control (click button to popup) & mute control (checked means unmuted).
+
+Q: What configuration options does Paxui have?
+A: On starting, Paxui tries to read a configuration file at $XDG_CONFIG_HOME/paxui/paxui.conf and expects lines in the form Key=Value (no spaces around =). Blank lines & lines beginning # are ignored. Keys currently recognised are VolumeControlsDisabled, LineColour, ImageSource, ImageSink, ImageView and DarkTheme - see later questions on themes and customising. Paxui also tries to load user CSS from $XDG_CONFIG_HOME/paxui/paxui.css - again see customising.
+(NB: $XDG_CONFIG_HOME defaults to $HOME/.config)
+
+Q: Why does Paxui mess up my carefully-adjusted per-channel level settings?
+A: Paxui uses only a simple level-setting mechanism, locking together all channels in each stream. If you'd rather it didn't do this, use the config option VolumeControlsDisabled with value 1 or y or Y and Paxui will completely ignore volume levels.
+
+Q: Does Paxui work with dark themes?
+A: It should. Hopefully. It guesses whether you're using a dark theme and adjusts some of its colours accordingly. If you find that it has guessed wrongly, add the key DarkTheme to your config file, this will override the guess. Use the value 1 or y or Y if you ARE using a dark theme, 0 or n or N if you are NOT using a dark theme.
+
+Q: How customisable is Paxui?
+A: Quite a bit. As already mentioned, user CSS can be loaded. Class names 'source', 'source-output', 'client', 'module', 'sink-input' and 'sink' are given to elements representing similarly named pulseaudio objects, while 'outer' is given to all of those.
+If you wish to change the colours representing active streams, you can do that in paxui.conf with the key LineColour: use it as many times as you want colours. If no valid colours are set, the default set of 8 is used. Colour values can be a C-style number for a 32-bit ARGB value (alpha in the high byte); or you can use HTML-style hex format (either #rrggbb or #rrggbbaa).
+If you want to replace the images used to represent sources & sinks and on the view button, use the config keys ImageSource, ImageSink and ImageView, with the path to your file as the value (the built-in images are 32x32 pixel png images with transparent background).
+
+Q: Why 'paxui'?
+A: Some may say that 'pa' means 'PulseAudio' & 'ui' means 'User Interface'; others may disagree.
+
+---
+
+Contact:
+    iskra42463@gmail.com
+    iskra42463@yandex.com
