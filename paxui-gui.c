@@ -156,8 +156,8 @@ leaf_grid_attach (PaxuiLeaf *leaf)
 }
 
 
-static gint
-cmp_blocks_y (gconstpointer a, gconstpointer b)
+gint
+paxui_cmp_blocks_y (gconstpointer a, gconstpointer b)
 {
     const PaxuiLeaf *bk_a = a, *bk_b = b;
 
@@ -311,7 +311,7 @@ source_drag_data_received (GtkWidget *widget, GdkDragContext *context, gint x, g
         {
             DBG("    move source:%u to pos of source:%u", source_index, sc->index);
 
-            sc->paxui->sources = g_list_sort (sc->paxui->sources, cmp_blocks_y);
+            sc->paxui->sources = g_list_sort (sc->paxui->sources, paxui_cmp_blocks_y);
             cycle_column (sc->paxui->sources, sc, mv);
         }
         else
@@ -363,7 +363,7 @@ sink_drag_data_received (GtkWidget *widget, GdkDragContext *context, gint x, gin
         {
             DBG("    move sink:%u to pos of sink:%u", sink_index, sk->index);
 
-            sk->paxui->sinks = g_list_sort (sk->paxui->sinks, cmp_blocks_y);
+            sk->paxui->sinks = g_list_sort (sk->paxui->sinks, paxui_cmp_blocks_y);
             cycle_column (sk->paxui->sinks, sk, mv);
         }
         else
@@ -411,7 +411,7 @@ block_drag_data_received (GtkWidget *widget, GdkDragContext *context, gint x, gi
         }
         if (bk)
         {
-            lf->paxui->acams = g_list_sort (lf->paxui->acams, cmp_blocks_y);
+            lf->paxui->acams = g_list_sort (lf->paxui->acams, paxui_cmp_blocks_y);
 
             cycle_column (lf->paxui->acams, lf, bk);
         }
@@ -592,6 +592,102 @@ label_style_updated (GtkWidget *label, gpointer udata)
 
 
 static void
+position_to_init_column (Paxui *paxui, GList *column, GList *init_list)
+{
+    gint y, dy;
+    GList *lc, *li;
+
+    if (init_list == NULL) return;
+
+    /* clear temp y coords */
+    for (lc = column; lc; lc = lc->next)
+    {
+        PaxuiLeaf *lf = lc->data;
+
+        lf->ty = 0;
+    }
+
+    y = paxui->blk_row1;
+    dy = paxui->blk_step;
+
+    /* set temp y coord for items matched to init_list */
+    for (li = init_list; li; li = li->next)
+    {
+        PaxuiInitItem *ls = li->data;
+
+        for (lc = column; lc; lc = lc->next)
+        {
+            PaxuiLeaf *lf = lc->data;
+
+            if (lf->ty) continue;
+
+            if (ls->str2)
+            {
+                PaxuiLeaf *md;
+
+                md = paxui_find_module_for_index (paxui, lf->module);
+                if (md == NULL || ls->str1 == NULL ||
+                    strcmp (ls->str1, md->name) || strcmp (ls->str2, lf->name))
+                {
+                    continue;
+                }
+            }
+            else if (ls->str1 == NULL || strcmp (ls->str1, lf->name))
+            {
+                continue;
+            }
+
+            lf->ty = y;
+            y += dy;
+            break;
+        }
+    }
+
+    /* set y coord for any other leaf in column */
+    for (lc = column; lc; lc = lc->next)
+    {
+        PaxuiLeaf *lf = lc->data;
+
+        if (lf->ty == 0)
+        {
+            lf->ty = y;
+            y += dy;
+        }
+    }
+
+    /* set new positions to gui */
+    for (lc = column; lc; lc = lc->next)
+    {
+        PaxuiLeaf *lf = lc->data;
+
+        if (lf->ty != lf->y)
+        {
+            DBG("    move leaf %d,%d => %d,%d", lf->x, lf->y, lf->x, lf->ty);
+            lf->y = lf->ty;
+            leaf_grid_attach (lf);
+            gtk_widget_queue_draw (lf->outer);
+        }
+    }
+}
+
+static gboolean
+position_to_init_full (gpointer udata)
+{
+    Paxui *paxui = udata;
+
+    DBG("full repos to init states");
+
+    position_to_init_column (paxui, paxui->sources, paxui->src_inits);
+    position_to_init_column (paxui, paxui->acams, paxui->cam_inits);
+    position_to_init_column (paxui, paxui->sinks, paxui->snk_inits);
+
+    paxui_unload_init_strings (paxui);
+
+    return G_SOURCE_REMOVE;
+}
+
+
+static void
 leaf_set_initial_pos (PaxuiLeaf *leaf)
 {
     gint y, dy;
@@ -622,10 +718,7 @@ leaf_set_initial_pos (PaxuiLeaf *leaf)
 
     for (; ; y += dy)
     {
-        GtkWidget *w;
-
-        w = gtk_grid_get_child_at (GTK_GRID (leaf->paxui->grid), leaf->x, y);
-        if (w == NULL)
+        if (gtk_grid_get_child_at (GTK_GRID (leaf->paxui->grid), leaf->x, y) == NULL)
         {
             leaf->y = y;
             leaf_grid_attach (leaf);
@@ -883,7 +976,7 @@ layout_scms_column (GList **column, gint y1, gint dy)
     gint y;
     GList *l;
 
-    *column = g_list_sort (*column, cmp_blocks_y);
+    *column = g_list_sort (*column, paxui_cmp_blocks_y);
     for (l = *column, y = y1; l; l = l->next)
     {
         PaxuiLeaf *lf = l->data;
@@ -1164,6 +1257,13 @@ grid_alloc (GtkWidget *grid, GdkRectangle *alloc, gpointer udata)
     gtk_layout_set_size (GTK_LAYOUT (paxui->layout),
                          alloc->width  + 2*PAXUI_LAYOUT_PADDING,
                          alloc->height + 2*PAXUI_LAYOUT_PADDING);
+
+    if (paxui->pa_init_done)
+    {
+        paxui->pa_init_done = FALSE;
+
+        g_idle_add (position_to_init_full, paxui);
+    }
 }
 
 

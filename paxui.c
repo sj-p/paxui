@@ -68,6 +68,68 @@ paxui_log_append (int log_level, const char *file, int line, const char *fmt, ..
 }
 
 
+static gchar *
+escape_string (const gchar *unescaped)
+{
+    const gchar *protect = "|;~\\";
+    const gchar *p;
+    gchar *text, *q;
+    gint n;
+
+    if (unescaped == NULL) return NULL;
+
+    /* calc required size */
+    for (p = unescaped, n = 1; *p; p++, n++)
+    {
+        gchar ch = *p;
+
+        if (ch < 32 || strchr (protect, ch))
+            n += 3;
+    }
+
+    text = g_malloc (n);
+    for (p = unescaped, q = text; *p; p++, q++)
+    {
+        gchar ch = *p;
+
+        if (ch < 32 || strchr (protect, ch))
+        {
+            sprintf (q, "\\x%02x", ch);
+            q += 3;
+        }
+        else
+        {
+            *q = ch;
+        }
+    }
+    *q = '\0';
+
+    return text;
+}
+
+static void
+unescape_string (gchar *escaped)
+{
+    gchar *p, *q;
+
+    if (escaped == NULL) return;
+
+    for (p = escaped, q = escaped; *p; p++, q++)
+    {
+        gchar ch = *p;
+
+        if (ch == '\\' &&
+            p[1] == 'x' && g_ascii_isxdigit (p[2]) && g_ascii_isxdigit (p[3]))
+        {
+            ch = g_ascii_xdigit_value (p[2]) << 4 | g_ascii_xdigit_value (p[3]);
+            p += 3;
+        }
+        *q = ch;
+    }
+    *q = '\0';
+}
+
+
 PaxuiLeaf *
 paxui_find_module_for_index (const Paxui *paxui, guint32 index)
 {
@@ -234,11 +296,36 @@ paxui_leaf_destroy (PaxuiLeaf *leaf)
     g_free (leaf);
 }
 
+static void
+paxui_init_str_destroy (PaxuiInitItem *init_str)
+{
+    if (init_str == NULL) return;
+    g_free (init_str->str1);
+    g_free (init_str->str2);
+    g_slice_free (PaxuiInitItem, init_str);
+}
+
+
+void
+paxui_unload_init_strings (Paxui *paxui)
+{
+    TRACE("unload init strings");
+
+    g_list_free_full (paxui->src_inits, (GDestroyNotify) paxui_init_str_destroy);
+    paxui->src_inits = NULL;
+    g_list_free_full (paxui->cam_inits, (GDestroyNotify) paxui_init_str_destroy);
+    paxui->cam_inits = NULL;
+    g_list_free_full (paxui->snk_inits, (GDestroyNotify) paxui_init_str_destroy);
+    paxui->snk_inits = NULL;
+}
+
 
 static void
 paxui_destroy (Paxui *paxui)
 {
     TRACE("paxui destroy");
+
+    paxui_unload_init_strings (paxui);
 
     if (paxui->source_icon) g_object_unref (paxui->source_icon);
     if (paxui->sink_icon)   g_object_unref (paxui->sink_icon);
@@ -250,6 +337,7 @@ paxui_destroy (Paxui *paxui)
     g_free (paxui->data_dir);
     g_free (paxui);
 }
+
 
 void
 paxui_unload_data (Paxui *paxui)
@@ -293,6 +381,55 @@ paxui_leaf_new (guint leaf_type)
 }
 
 
+static void
+add_init_string (GList **list, const gchar *str1, const gchar *str2)
+{
+    PaxuiInitItem *init_str;
+
+    init_str = g_slice_new (PaxuiInitItem);
+    init_str->str1 = g_strdup (str1);
+    init_str->str2 = g_strdup (str2);
+    *list = g_list_append (*list, init_str);
+}
+
+static GList *
+get_init_str_list (const gchar *arg, gboolean two_items)
+{
+    GList *list = NULL;
+    gchar **items, **item;
+
+    if (arg == NULL) return NULL;
+    items = g_strsplit (arg, ";", -1);
+    if (items == NULL) return NULL;
+
+    for (item = items; *item && **item; item++)
+    {
+        if (two_items)
+        {
+            gchar *p;
+
+            p = strchr (*item, '|');
+            if (p)
+            {
+                *p = '\0';
+                p++;
+                unescape_string (p);
+            }
+            unescape_string (*item);
+            add_init_string (&list, *item, p);
+        }
+        else
+        {
+            unescape_string (*item);
+            add_init_string (&list, *item, NULL);
+        }
+    }
+
+    g_strfreev (items);
+
+    return list;
+}
+
 void
 paxui_settings_load_state (Paxui *paxui, PaxuiState *state)
 {
@@ -334,30 +471,129 @@ paxui_settings_load_state (Paxui *paxui, PaxuiState *state)
                 state->height = MAX (200, atoi (p));
             else if (g_strcmp0 (*sline, "ViewMode") == 0)
                 paxui->view_mode = CLAMP (atoi (p), 0, 2);
+            else if (g_strcmp0 (*sline, "Sources") == 0)
+                paxui->src_inits = get_init_str_list (p, FALSE);
+            else if (g_strcmp0 (*sline, "ModulesClients") == 0)
+                paxui->cam_inits = get_init_str_list (p, TRUE);
+            else if (g_strcmp0 (*sline, "Sinks") == 0)
+                paxui->snk_inits = get_init_str_list (p, FALSE);
         }
     }
 
     g_strfreev (slines);
 }
 
+
+void
+paxui_make_init_strings (Paxui *paxui)
+{
+    GList *l;
+    PaxuiLeaf *leaf, *md;
+
+    TRACE("make init strings");
+
+    paxui->sources = g_list_sort (paxui->sources, paxui_cmp_blocks_y);
+    for (l = paxui->sources; l; l = l->next)
+    {
+        leaf = l->data;
+
+        add_init_string (&paxui->src_inits, leaf->name, NULL);
+    }
+
+    paxui->acams = g_list_sort (paxui->acams, paxui_cmp_blocks_y);
+    for (l = paxui->acams; l; l = l->next)
+    {
+        leaf = l->data;
+
+        if (leaf->leaf_type == PAXUI_LEAF_TYPE_MODULE)
+        {
+            add_init_string (&paxui->cam_inits, leaf->name, NULL);
+        }
+        else
+        {
+            md = paxui_find_module_for_index (paxui, leaf->module);
+            add_init_string (&paxui->cam_inits, (md ? md->name : "~"), leaf->name);
+        }
+    }
+
+    paxui->sinks = g_list_sort (paxui->sinks, paxui_cmp_blocks_y);
+    for (l = paxui->sinks; l; l = l->next)
+    {
+        leaf = l->data;
+
+        add_init_string (&paxui->snk_inits, leaf->name, NULL);
+    }
+}
+
 void
 paxui_settings_save_state (Paxui *paxui, PaxuiState *state)
 {
-    gchar *text, *filename;
+    gchar *filename;
+    GString *text;
+    GList *l;
 
     filename = g_build_filename (paxui->data_dir, "paxui.state", NULL);
 
     DBG("save to state_file: '%s'", filename);
 
-    text = g_strdup_printf ("WindowWidth=%d\nWindowHeight=%d\nViewMode=%u\n",
-                state->width, state->height, paxui->view_mode);
+    text = g_string_new (NULL);
 
-    if (!g_file_set_contents (filename, text, -1, NULL))
+    g_string_printf (text,
+                     "WindowWidth=%d\nWindowHeight=%d\nViewMode=%u\n",
+                     state->width, state->height, paxui->view_mode);
+
+    if (paxui->spinner == NULL)
+    {
+        paxui_unload_init_strings (paxui);
+        paxui_make_init_strings (paxui);
+    }
+
+    TRACE("  saving sources");
+    g_string_append (text, "\nSources=");
+    for (l = paxui->src_inits; l; l = l->next)
+    {
+        PaxuiInitItem *init_str = l->data;
+
+        g_string_append_printf (text, "%s;", init_str->str1);
+    }
+
+    TRACE("  saving modules & clients");
+    g_string_append (text, "\nModulesClients=");
+    for (l = paxui->cam_inits; l; l = l->next)
+    {
+        PaxuiInitItem *init_str = l->data;
+
+        if (init_str->str2 == NULL)
+        {
+            g_string_append_printf (text, "%s;", init_str->str1);
+        }
+        else
+        {
+            gchar *esc;
+
+            esc = escape_string (init_str->str2);
+            g_string_append_printf (text, "%s|%s;", init_str->str1, esc);
+            g_free (esc);
+        }
+    }
+
+    TRACE("  saving sinks");
+    g_string_append (text, "\nSinks=");
+    for (l = paxui->snk_inits; l; l = l->next)
+    {
+        PaxuiInitItem *init_str = l->data;
+
+        g_string_append_printf (text, "%s;", init_str->str1);
+    }
+
+    g_string_append (text, "\n");
+
+    if (!g_file_set_contents (filename, text->str, text->len, NULL))
     {
         DBG("failed to save state");
     }
 
-    g_free (text);
+    g_string_free (text, TRUE);
     g_free (filename);
 }
 

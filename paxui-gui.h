@@ -15,4 +15,6 @@ void        paxui_gui_remove_from_column    (GList *column, PaxuiLeaf *leaf);
 void        paxui_gui_colour_free           (Paxui *paxui, gint index);
 void        paxui_gui_get_default_colours   (Paxui *paxui);
 
+gint        paxui_cmp_blocks_y              (gconstpointer a, gconstpointer b);
+
 #endif

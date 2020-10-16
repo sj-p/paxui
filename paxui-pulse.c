@@ -285,11 +285,13 @@ client_info_cb (pa_context *c, const pa_client_info *info, int eol, void *udata)
         client->index = info->index;
         client->paxui = paxui;
 
+        client->module = info->owner_module;
+
         paxui->clients = g_list_append (paxui->clients, client);
     }
 
     client->name = g_strdup (info->name);
-    client->short_name = get_short_name (client->name, 3);;
+    client->short_name = get_short_name (client->name, 3);
 
     if (client->outer == NULL)
     {
@@ -930,12 +932,16 @@ subscribed_cb (pa_context *c, int success, Paxui *paxui)
     get_clients (paxui);
     get_sink_inputs (paxui);
     get_source_outputs (paxui);
+
+    paxui->pa_init_done = TRUE;
 }
 
 static void
 renew_connection (Paxui *paxui)
 {
     pa_context_unref (paxui->pa_ctx);
+
+    paxui_make_init_strings (paxui);
 
     paxui_unload_data (paxui);
     paxui_gui_add_spinner (paxui);

@@ -39,6 +39,7 @@ typedef struct _Paxui
 
     gboolean            terminated;
     gboolean            updating;
+    gboolean            pa_init_done;
 
     GtkApplication     *app;
     GtkWidget          *window;
@@ -56,6 +57,9 @@ typedef struct _Paxui
     GList              *modules;
     GList              *clients;
     GList              *acams;      /* active clients and modules */
+    GList              *src_inits;
+    GList              *cam_inits;
+    GList              *snk_inits;
 
     PaxuiColour        *colours;
     guint              *col_num;
@@ -139,6 +143,13 @@ typedef struct _PaxuiState
 } PaxuiState;
 
 
+typedef struct _PaxuiInitItem
+{
+    gchar      *str1;
+    gchar      *str2;
+} PaxuiInitItem;
+
+
 extern gint debug;
 
 
@@ -152,6 +163,8 @@ void                paxui_block_update_active           (PaxuiLeaf *block, Paxui
 
 PaxuiLeaf          *paxui_leaf_new                      (guint leaf_type);
 void                paxui_unload_data                   (Paxui *paxui);
+void                paxui_make_init_strings             (Paxui *paxui);
+void                paxui_unload_init_strings           (Paxui *paxui);
 void                paxui_leaf_destroy                  (PaxuiLeaf *leaf);
 
 void                paxui_load_conf                     (Paxui *paxui);
