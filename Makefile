@@ -6,12 +6,25 @@ ldflags =
 all_incs = `pkg-config --cflags glib-2.0 gtk+-3.0 libpulse libpulse-mainloop-glib`
 all_libs = `pkg-config --libs   glib-2.0 gtk+-3.0 libpulse libpulse-mainloop-glib`
 
-all_objects = paxui.o paxui-pulse.o paxui-gui.o paxui-actions.o paxui-icons.o
-module_hdrs = paxui.h paxui-pulse.h paxui-gui.h paxui-actions.h paxui-icons.h
+all_objects = src/paxui.o \
+			  src/paxui-pulse.o \
+			  src/paxui-gui.o \
+			  src/paxui-actions.o \
+			  src/paxui-icons.o
 
-all_icons = logo.png \
-			source.png sink.png view.png \
-			source-dark.png sink-dark.png view-dark.png
+module_hdrs = src/paxui.h \
+			  src/paxui-pulse.h \
+			  src/paxui-gui.h \
+			  src/paxui-actions.h \
+			  src/paxui-icons.h
+
+all_icons = png/logo.png \
+			png/source.png \
+			png/sink.png \
+			png/view.png \
+			png/source-dark.png \
+			png/sink-dark.png \
+			png/view-dark.png
 
 
 all:	paxui
@@ -22,15 +35,15 @@ paxui:	$(all_objects)
 
 clean:
 	@echo CLEAN
-	@rm -f *.o paxui-icons.c paxui-icons.h paxui
+	@rm -f src/*.o src/paxui-icons.c src/paxui-icons.h paxui
 
-paxui-icons.h: paxui-icons.xml $(all_icons)
+src/paxui-icons.h: src/paxui-icons.xml $(all_icons)
 	@echo $@
-	@glib-compile-resources --target=paxui-icons.h --generate-header paxui-icons.xml
+	@glib-compile-resources --sourcedir=png --target=src/paxui-icons.h --generate-header src/paxui-icons.xml
 
-paxui-icons.c: paxui-icons.xml $(all_icons)
+src/paxui-icons.c: src/paxui-icons.xml $(all_icons)
 	@echo $@
-	@glib-compile-resources --generate-source paxui-icons.xml
+	@glib-compile-resources --sourcedir=png --generate-source src/paxui-icons.xml
 
 $(all_objects): %.o: %.c %.h $(module_hdrs)
 	@echo $@

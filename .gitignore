@@ -1,4 +1,4 @@
 paxui
-paxui-icons.c
-paxui-icons.h
-*.o
+src/paxui-icons.c
+src/paxui-icons.h
+src/*.o
