@@ -624,53 +624,20 @@ settings_setup_dirs (Paxui *paxui)
     }
 }
 
-static gboolean
-theme_is_dark ()
-{
-    const gchar *env_var;
-    gchar *theme_name = NULL;
-    gboolean dark_theme = FALSE;
-
-    /* guess from theme name whether it's a dark theme, and default
-     * 'dark_theme' setting accordingly */
-    env_var = g_getenv ("GTK_THEME");
-    if (env_var != NULL)
-    {
-        theme_name = g_ascii_strdown (env_var, -1);
-    }
-    else
-    {
-        GtkSettings *settings;
-
-        if ((settings = gtk_settings_get_default ()))
-        {
-            gchar *temp_str;
-
-            g_object_get (settings, "gtk-theme-name", &temp_str, NULL);
-            theme_name = g_ascii_strdown (temp_str, -1);
-
-            g_free (temp_str);
-        }
-    }
-
-    if (theme_name)
-    {
-        if (strstr (theme_name, "dark") != NULL) dark_theme = TRUE;
-
-        g_free (theme_name);
-    }
-
-    return dark_theme;
-}
 
 void
 paxui_load_conf (Paxui *paxui)
 {
     gchar *text, *filename, **clines, **cline;
     GArray *colours;
-    gboolean dark_theme, volume_disabled = FALSE;
+    GtkSettings *settings;
+    gboolean dark_theme = FALSE, volume_disabled = FALSE;
 
-    dark_theme = theme_is_dark ();
+    settings = gtk_settings_get_default ();
+    if (settings)
+    {
+        g_object_get (settings, "gtk-application-prefer-dark-theme", &dark_theme, NULL);
+    }
 
     colours = g_array_new (FALSE, FALSE, sizeof (PaxuiColour));
 

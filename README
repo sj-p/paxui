@@ -20,7 +20,7 @@ Q: Why does Paxui mess up my carefully-adjusted per-channel level settings?
 A: Paxui uses only a simple level-setting mechanism, locking together all channels in each stream. If you'd rather it didn't do this, use the config option VolumeControlsDisabled with value 1 or y or Y and Paxui will completely ignore volume levels.
 
 Q: Does Paxui work with dark themes?
-A: It should. Hopefully. It guesses whether you're using a dark theme and adjusts some of its colours accordingly. If you find that it has guessed wrongly, add the key DarkTheme to your config file, this will override the guess. Use the value 1 or y or Y if you ARE using a dark theme, 0 or n or N if you are NOT using a dark theme.
+A: A: It should. Hopefully. It looks at the global GTK setting "gtk-application-prefer-dark-theme" and adjusts some of its colours accordingly. You can overrule that setting by adding the key DarkTheme to your config file (use the value 1 or y or Y if you ARE using a dark theme, 0 or n or N if you are NOT using a dark theme).
 
 Q: How customisable is Paxui?
 A: Quite a bit. As already mentioned, user CSS can be loaded. Class names 'source', 'source-output', 'client', 'module', 'sink-input' and 'sink' are given to elements representing similarly named pulseaudio objects, while 'outer' is given to all of those.
