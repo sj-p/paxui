@@ -91,6 +91,23 @@ paxui_gui_colour_free (Paxui *paxui, gint index)
 }
 
 
+static gboolean
+window_focusin_cb (GtkWidget *window, GdkEvent *event, gpointer udata)
+{
+    gtk_style_context_add_class (gtk_widget_get_style_context (window), "active");
+
+    return FALSE;
+}
+
+static gboolean
+window_focusout_cb (GtkWidget *window, GdkEvent *event, gpointer udata)
+{
+    gtk_style_context_remove_class (gtk_widget_get_style_context (window), "active");
+
+    return FALSE;
+}
+
+
 static void
 set_row_params (PaxuiLeaf *leaf, gint *y, gint *dy)
 {
@@ -1402,6 +1419,9 @@ paxui_gui_build_gui (Paxui *paxui)
     GtkWidget *scr, *label, *vbox, *image, *head, *view_button;
 
     TRACE("build gui");
+
+    g_signal_connect (paxui->window, "focus-in-event",  G_CALLBACK (window_focusin_cb),  paxui);
+    g_signal_connect (paxui->window, "focus-out-event", G_CALLBACK (window_focusout_cb), paxui);
 
     head = gtk_header_bar_new ();
     gtk_window_set_titlebar (GTK_WINDOW (paxui->window), head);
