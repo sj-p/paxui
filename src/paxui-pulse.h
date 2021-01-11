@@ -12,6 +12,7 @@ void        paxui_pulse_unload_module       (Paxui *paxui, guint32 index);
 
 void        paxui_pulse_volume_set          (PaxuiLeaf *leaf);
 void        paxui_pulse_mute_set            (PaxuiLeaf *leaf);
+const gchar *paxui_pulse_channel_str        (guint32 pos);
 
 
 #endif

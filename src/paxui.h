@@ -30,6 +30,19 @@ enum
     PAXUI_LEAF_NUM_TYPES
 };
 
+enum
+{
+    PX_ICON_SOURCE = 0,
+    PX_ICON_SINK,
+    PX_ICON_GEAR,
+    PX_ICON_MUTED,
+    PX_ICON_UNMUTED,
+    PX_ICON_LOCKED,
+    PX_ICON_UNLOCKED,
+    PX_ICON_SWITCH,
+    PX_NUM_ICONS
+};
+
 
 typedef struct _Paxui
 {
@@ -43,12 +56,13 @@ typedef struct _Paxui
 
     GtkApplication     *app;
     GtkWidget          *window;
+    GtkWidget          *scr_win;
     GtkWidget          *layout;
     GtkWidget          *grid;
     GtkWidget          *spinner;
-    GdkPixbuf          *source_icon;
-    GdkPixbuf          *sink_icon;
-    GdkPixbuf          *view_icon;
+    GdkPixbuf          *icons[PX_NUM_ICONS];
+
+    GtkSizeGroup       *size_group;
 
     GList              *sources;
     GList              *source_outputs;
@@ -64,14 +78,17 @@ typedef struct _Paxui
     PaxuiColour        *colours;
     guint              *col_num;
     guint               num_colours;
-    guint               view_mode;
+    gint                end_row;
     gboolean            dark_theme;
     gboolean            volume_disabled;
+    gboolean            tist_enabled;
 
-    guint               blk_row1;
-    guint               blk_step;
-    guint               sosi_row1;
-    guint               sosi_step;
+    gint                drop_x, drop_y, drop_w, drop_h;
+    GdkRGBA             drop_colour;
+    gboolean            have_drop_colour;
+
+    guint               scroll_src;
+    gint                scroll_dir;
 
     GRegex             *name_regex;
 
@@ -107,6 +124,7 @@ typedef struct _PaxuiLeaf
     guint32     index;
     gchar      *name;
     gchar      *short_name;
+    gchar      *utf8_name;
 
     /* relative items by pa index */
     guint32     module;
@@ -124,15 +142,24 @@ typedef struct _PaxuiLeaf
     /* gui data */
     GtkWidget  *outer, *label;
     gint        x, y;       /* grid coords */
-    gint        tx, ty;     /* calculated coords */
     gint        colour;
 
     /* volume control */
     gboolean    vol_enabled;
     gboolean    muted;
-    guint32     level;
+    guint32    *levels;
     guint32     n_chan;
-    GtkWidget  *vol_button;
+
+    /* channel map */
+    guint32    *positions;
+    guint32     n_pos;
+
+    /* tool popover */
+    GtkWidget  *tool_button;
+    GtkWidget  *popover;
+    GtkWidget **sliders;
+    GtkWidget  *mute_button;
+    GtkWidget  *lock_button;
 } PaxuiLeaf;
 
 
@@ -147,6 +174,7 @@ typedef struct _PaxuiInitItem
 {
     gchar      *str1;
     gchar      *str2;
+    gint        y;
 } PaxuiInitItem;
 
 

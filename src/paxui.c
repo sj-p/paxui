@@ -10,6 +10,16 @@
 
 gint debug = 0;
 
+const gchar *image_names[] = {
+    "ImageSource",
+    "ImageSink",
+    "ImageGear",
+    "ImageMuted",
+    "ImageUnmuted",
+    "ImageLocked",
+    "ImageUnlocked",
+    "ImageSwitch"};
+
 
 static guint32
 text_to_argb (const gchar *text)
@@ -291,6 +301,10 @@ paxui_leaf_destroy (PaxuiLeaf *leaf)
     if (GTK_IS_WIDGET (leaf->outer)) gtk_widget_destroy (leaf->outer);
     g_free (leaf->name);
     g_free (leaf->short_name);
+    g_free (leaf->utf8_name);
+    g_free (leaf->levels);
+    g_free (leaf->positions);
+    g_free (leaf->sliders);
     paxui_gui_colour_free (leaf->paxui, leaf->colour);
 
     g_free (leaf);
@@ -323,12 +337,18 @@ paxui_unload_init_strings (Paxui *paxui)
 static void
 paxui_destroy (Paxui *paxui)
 {
+    gint i;
+
     TRACE("paxui destroy");
 
     paxui_unload_init_strings (paxui);
 
-    if (paxui->source_icon) g_object_unref (paxui->source_icon);
-    if (paxui->sink_icon)   g_object_unref (paxui->sink_icon);
+    for (i = 0; i < PX_NUM_ICONS; i++)
+    {
+        if (paxui->icons[i]) g_object_unref (paxui->icons[i]);
+    }
+
+    if (paxui->size_group) g_object_unref (paxui->size_group);
     if (paxui->name_regex)  g_regex_unref  (paxui->name_regex);
 
     g_free (paxui->colours);
@@ -382,13 +402,14 @@ paxui_leaf_new (guint leaf_type)
 
 
 static void
-add_init_string (GList **list, const gchar *str1, const gchar *str2)
+add_init_string (GList **list, const gchar *str1, const gchar *str2, gint y)
 {
     PaxuiInitItem *init_str;
 
     init_str = g_slice_new (PaxuiInitItem);
     init_str->str1 = g_strdup (str1);
     init_str->str2 = g_strdup (str2);
+    init_str->y = y;
     *list = g_list_append (*list, init_str);
 }
 
@@ -404,24 +425,41 @@ get_init_str_list (const gchar *arg, gboolean two_items)
 
     for (item = items; *item && **item; item++)
     {
+        gchar *q = NULL;
+        gint y = 0;
+        unsigned long int n;
+
+        /* get possible row number */
+        n = strtoul (*item, &q, 0);
+        if (q && *q == '|')
+        {
+            y = (n > G_MAXINT ? 0 : n);
+            q++;
+        }
+        else
+        {
+            q = *item;
+        }
+
+        /* get name strings */
         if (two_items)
         {
             gchar *p;
 
-            p = strchr (*item, '|');
+            p = strchr (q, '|');
             if (p)
             {
                 *p = '\0';
                 p++;
                 unescape_string (p);
             }
-            unescape_string (*item);
-            add_init_string (&list, *item, p);
+            unescape_string (q);
+            add_init_string (&list, q, p, y);
         }
         else
         {
-            unescape_string (*item);
-            add_init_string (&list, *item, NULL);
+            unescape_string (q);
+            add_init_string (&list, q, NULL, y);
         }
     }
 
@@ -469,8 +507,6 @@ paxui_settings_load_state (Paxui *paxui, PaxuiState *state)
                 state->width = MAX (200, atoi (p));
             else if (g_strcmp0 (*sline, "WindowHeight") == 0)
                 state->height = MAX (200, atoi (p));
-            else if (g_strcmp0 (*sline, "ViewMode") == 0)
-                paxui->view_mode = CLAMP (atoi (p), 0, 2);
             else if (g_strcmp0 (*sline, "Sources") == 0)
                 paxui->src_inits = get_init_str_list (p, FALSE);
             else if (g_strcmp0 (*sline, "ModulesClients") == 0)
@@ -497,7 +533,7 @@ paxui_make_init_strings (Paxui *paxui)
     {
         leaf = l->data;
 
-        add_init_string (&paxui->src_inits, leaf->name, NULL);
+        add_init_string (&paxui->src_inits, leaf->name, NULL, leaf->y);
     }
 
     paxui->acams = g_list_sort (paxui->acams, paxui_cmp_blocks_y);
@@ -507,12 +543,12 @@ paxui_make_init_strings (Paxui *paxui)
 
         if (leaf->leaf_type == PAXUI_LEAF_TYPE_MODULE)
         {
-            add_init_string (&paxui->cam_inits, leaf->name, NULL);
+            add_init_string (&paxui->cam_inits, leaf->name, NULL, leaf->y);
         }
         else
         {
             md = paxui_find_module_for_index (paxui, leaf->module);
-            add_init_string (&paxui->cam_inits, (md ? md->name : "~"), leaf->name);
+            add_init_string (&paxui->cam_inits, (md ? md->name : "~"), leaf->name, leaf->y);
         }
     }
 
@@ -521,7 +557,7 @@ paxui_make_init_strings (Paxui *paxui)
     {
         leaf = l->data;
 
-        add_init_string (&paxui->snk_inits, leaf->name, NULL);
+        add_init_string (&paxui->snk_inits, leaf->name, NULL, leaf->y);
     }
 }
 
@@ -539,8 +575,8 @@ paxui_settings_save_state (Paxui *paxui, PaxuiState *state)
     text = g_string_new (NULL);
 
     g_string_printf (text,
-                     "WindowWidth=%d\nWindowHeight=%d\nViewMode=%u\n",
-                     state->width, state->height, paxui->view_mode);
+                     "WindowWidth=%d\nWindowHeight=%d\n",
+                     state->width, state->height);
 
     if (paxui->spinner == NULL)
     {
@@ -554,7 +590,7 @@ paxui_settings_save_state (Paxui *paxui, PaxuiState *state)
     {
         PaxuiInitItem *init_str = l->data;
 
-        g_string_append_printf (text, "%s;", init_str->str1);
+        g_string_append_printf (text, "%d|%s;", init_str->y, init_str->str1);
     }
 
     TRACE("  saving modules & clients");
@@ -565,14 +601,14 @@ paxui_settings_save_state (Paxui *paxui, PaxuiState *state)
 
         if (init_str->str2 == NULL)
         {
-            g_string_append_printf (text, "%s;", init_str->str1);
+            g_string_append_printf (text, "%d|%s;", init_str->y, init_str->str1);
         }
         else
         {
             gchar *esc;
 
             esc = escape_string (init_str->str2);
-            g_string_append_printf (text, "%s|%s;", init_str->str1, esc);
+            g_string_append_printf (text, "%d|%s|%s;", init_str->y, init_str->str1, esc);
             g_free (esc);
         }
     }
@@ -583,7 +619,7 @@ paxui_settings_save_state (Paxui *paxui, PaxuiState *state)
     {
         PaxuiInitItem *init_str = l->data;
 
-        g_string_append_printf (text, "%s;", init_str->str1);
+        g_string_append_printf (text, "%d|%s;", init_str->y, init_str->str1);
     }
 
     g_string_append (text, "\n");
@@ -625,18 +661,42 @@ settings_setup_dirs (Paxui *paxui)
 }
 
 
+static gboolean
+parse_boolean_setting (const gchar *conf_key,
+                       const gchar *key, const gchar *value,
+                       gboolean *ret_val)
+{
+    const gchar ch_true[]  = "1YyTt";
+    const gchar ch_false[] = "0NnFf";
+
+    if (strcmp (key, conf_key)) return FALSE;
+    if (value[1] != '\0') return TRUE;
+
+    if (strchr (ch_true, value[0]))
+    {
+        *ret_val = TRUE;
+        return TRUE;
+    }
+    else if (strchr (ch_false, value[0]))
+    {
+        *ret_val = FALSE;
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 void
 paxui_load_conf (Paxui *paxui)
 {
     gchar *text, *filename, **clines, **cline;
     GArray *colours;
     GtkSettings *settings;
-    gboolean dark_theme = FALSE, volume_disabled = FALSE;
 
     settings = gtk_settings_get_default ();
     if (settings)
     {
-        g_object_get (settings, "gtk-application-prefer-dark-theme", &dark_theme, NULL);
+        g_object_get (settings, "gtk-application-prefer-dark-theme", &paxui->dark_theme, NULL);
     }
 
     colours = g_array_new (FALSE, FALSE, sizeof (PaxuiColour));
@@ -678,90 +738,39 @@ paxui_load_conf (Paxui *paxui)
                     colour.argb = text_to_argb (p);
                     if (colour.argb) g_array_append_val (colours, colour);
                 }
-                else if (strcmp (*cline, "ImageSource") == 0)
+                else if (parse_boolean_setting ("DarkTheme", *cline, p, &paxui->dark_theme))
+                    continue;
+                else if (parse_boolean_setting ("VolumeControlsDisabled", *cline, p, &paxui->volume_disabled))
+                    continue;
+                else if (parse_boolean_setting ("ThisIsSpinalTap", *cline, p, &paxui->tist_enabled))
+                    continue;
+                else
                 {
-                    GdkPixbuf *pb;
-                    GError *err = NULL;
+                    gint i;
 
-                    if ((pb = gdk_pixbuf_new_from_file (p, &err)))
+                    for (i = 0; i < PX_NUM_ICONS; i++)
                     {
-                        if (paxui->source_icon) g_object_unref (paxui->source_icon);
-                        paxui->source_icon = pb;
-                        DBG("loaded source icon from '%s'", p);
-                    }
-                    else
-                    {
-                        ERR("failed to load source icon from '%s'", p);
-                        if (err)
+                        GdkPixbuf *pb;
+                        GError *err = NULL;
+
+                        if (strcmp (*cline, image_names[i])) continue;
+
+                        if ((pb = gdk_pixbuf_new_from_file (p, &err)))
                         {
-                            DBG("    %s", err->message);
-                            g_error_free (err);
+                            if (paxui->icons[i]) g_object_unref (paxui->icons[i]);
+                            paxui->icons[i] = pb;
+                            DBG("loaded image '%s' from '%s'", image_names[i], p);
+                        }
+                        else
+                        {
+                            ERR("failed to load image '%s' from '%s'", image_names[i], p);
+                            if (err)
+                            {
+                                DBG("    %s", err->message);
+                                g_error_free (err);
+                            }
                         }
                     }
-                }
-                else if (strcmp (*cline, "ImageSink") == 0)
-                {
-                    GdkPixbuf *pb;
-                    GError *err = NULL;
-
-                    if ((pb = gdk_pixbuf_new_from_file (p, &err)))
-                    {
-                        if (paxui->sink_icon) g_object_unref (paxui->sink_icon);
-                        paxui->sink_icon = pb;
-                        DBG("loaded sink icon from '%s'", p);
-                    }
-                    else
-                    {
-                        ERR("failed to load sink icon from '%s'", p);
-                        if (err)
-                        {
-                            DBG("    %s", err->message);
-                            g_error_free (err);
-                        }
-                    }
-                }
-                else if (strcmp (*cline, "ImageView") == 0)
-                {
-                    GdkPixbuf *pb;
-                    GError *err = NULL;
-
-                    if ((pb = gdk_pixbuf_new_from_file (p, &err)))
-                    {
-                        if (paxui->view_icon) g_object_unref (paxui->view_icon);
-                        paxui->view_icon = pb;
-                        DBG("loaded view icon from '%s'", p);
-                    }
-                    else
-                    {
-                        ERR("failed to load view icon from '%s'", p);
-                        if (err)
-                        {
-                            DBG("    %s", err->message);
-                            g_error_free (err);
-                        }
-                    }
-                }
-                else if (strcmp (*cline, "DarkTheme") == 0)
-                {
-                    if (g_strcmp0 (p, "1") == 0)
-                        dark_theme = TRUE;
-                    else if (g_ascii_strcasecmp (p, "y") == 0)
-                        dark_theme = TRUE;
-                    else if (g_strcmp0 (p, "0") == 0)
-                        dark_theme = FALSE;
-                    else if (g_ascii_strcasecmp (p, "n") == 0)
-                        dark_theme = FALSE;
-                }
-                else if (strcmp (*cline, "VolumeControlsDisabled") == 0)
-                {
-                    if (g_strcmp0 (p, "1") == 0)
-                        volume_disabled = TRUE;
-                    else if (g_ascii_strcasecmp (p, "y") == 0)
-                        volume_disabled = TRUE;
-                    else if (g_strcmp0 (p, "0") == 0)
-                        volume_disabled = FALSE;
-                    else if (g_ascii_strcasecmp (p, "n") == 0)
-                        volume_disabled = FALSE;
                 }
             }
         }
@@ -783,9 +792,6 @@ conf_finish:
     paxui->col_num = g_new0 (guint, paxui->num_colours);
 
     DBG("have %u colours", paxui->num_colours);
-
-    paxui->dark_theme = dark_theme;
-    paxui->volume_disabled = volume_disabled;
 }
 
 

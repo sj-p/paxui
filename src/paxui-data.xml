@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/paxui">
+    <file>logo.png</file>
+    <file>source.png</file>
+    <file>source-dark.png</file>
+    <file>sink.png</file>
+    <file>sink-dark.png</file>
+    <file>gear.png</file>
+    <file>gear-dark.png</file>
+    <file>muted.png</file>
+    <file>muted-dark.png</file>
+    <file>unmuted.png</file>
+    <file>unmuted-dark.png</file>
+    <file>locked.png</file>
+    <file>locked-dark.png</file>
+    <file>unlocked.png</file>
+    <file>unlocked-dark.png</file>
+    <file>switch.png</file>
+    <file>switch-dark.png</file>
+    <file>internal.css</file>
+  </gresource>
+</gresources>

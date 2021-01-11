@@ -10,7 +10,6 @@ void        paxui_gui_rm_spinner            (Paxui *paxui);
 
 void        leaf_gui_new                    (PaxuiLeaf *leaf);
 void        leaf_gui_update                 (PaxuiLeaf *leaf);
-void        paxui_gui_remove_from_column    (GList *column, PaxuiLeaf *leaf);
 
 void        paxui_gui_colour_free           (Paxui *paxui, gint index);
 void        paxui_gui_get_default_colours   (Paxui *paxui);

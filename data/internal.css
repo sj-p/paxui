@@ -1,0 +1,66 @@
+/* define leaf colours */
+@define-color paxui_source_col        #ffd0d0;
+@define-color paxui_source_output_col #ffffd0;
+@define-color paxui_client_col        #d0ffd0;
+@define-color paxui_module_col        #ffd0ff;
+@define-color paxui_sink_input_col    #d0ffff;
+@define-color paxui_sink_col          #d0d0ff;
+
+/* apply leaf colours */
+.source             {background-color: @paxui_source_col;}
+.source-output      {background-color: @paxui_source_output_col;}
+.client             {background-color: @paxui_client_col;}
+.module             {background-color: @paxui_module_col;}
+.sink-input         {background-color: @paxui_sink_input_col;}
+.sink               {background-color: @paxui_sink_col;}
+.source.dark        {background-color: shade(@paxui_source_col,.3);}
+.source-output.dark {background-color: shade(@paxui_source_output_col,.3);}
+.client.dark        {background-color: shade(@paxui_client_col,.3);}
+.module.dark        {background-color: shade(@paxui_module_col,.3);}
+.sink-input.dark    {background-color: shade(@paxui_sink_input_col,.3);}
+.sink.dark          {background-color: shade(@paxui_sink_col,.3);}
+
+
+/* other styling */
+.outer
+{
+    border: 2px solid @theme_fg_color;
+    border-radius: 10px;
+}
+
+.outer>box
+{
+    margin: 6px;
+}
+
+label.title
+{
+    font-size: 112.5%;
+}
+
+.outer button
+{
+    background-image: none;
+    background-color: transparent;
+}
+
+.source-output label,
+.sink-input label
+{
+    font-size: 87.5%;
+}
+
+popover label.channel
+{
+    font-size: 87.5%;
+}
+
+popover scale mark label
+{
+    font-size: 62.5%;
+}
+
+.dummy
+{
+    color: transparent;
+}

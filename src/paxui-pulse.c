@@ -10,13 +10,12 @@
 #define PAXUI_CLIENT_NAME "Paxui"
 
 
-
 /* First strips whitespace from the ends of long_name.
  * Then, if long_name contains more than n words, return n words
  * with the addition of ellipsis character in utf-8;
  * otherwise returns a copy of stripped long_name */
 static gchar *
-get_short_name (gchar *long_name, gint n)
+make_short_name (gchar *long_name, gint n)
 {
     gchar *short_name, *p, *s;
     gboolean in_word;
@@ -57,15 +56,200 @@ get_short_name (gchar *long_name, gint n)
     return short_name;
 }
 
-
 static gchar *
-owner_module_name (const gchar *name, guint index)
+make_owner_module_name (const gchar *name, guint index)
 {
     return g_strdup_printf ("%s:%u",
                 (g_str_has_prefix (name, "module-") ? name + 7 : name),
                 index);
 }
 
+static gchar *
+make_utf8_name (const gchar *name)
+{
+    static const gchar *charset = NULL;
+    static gboolean is_utf8;
+    gchar *utf8;
+
+    if (charset == NULL)
+    {
+        is_utf8 = g_get_charset (&charset);
+
+        DBG("encoding is '%s'", charset);
+    }
+
+    if (is_utf8)
+    {
+
+        return g_utf8_make_valid (name, -1);
+    }
+
+    utf8 = g_locale_to_utf8 (name, -1, NULL, NULL, NULL);
+
+    return (utf8 ? utf8 : g_utf8_make_valid (name, -1));
+}
+
+static void
+leaf_get_strings (PaxuiLeaf *leaf, const gchar *name)
+{
+    g_free (leaf->name);
+    g_free (leaf->short_name);
+    g_free (leaf->utf8_name);
+
+    leaf->name = g_strdup (name);
+
+    switch (leaf->leaf_type)
+    {
+        PaxuiLeaf *md;
+
+        case PAXUI_LEAF_TYPE_CLIENT:
+            leaf->utf8_name = make_utf8_name (name);
+            leaf->short_name = make_short_name (leaf->utf8_name, 3);
+            break;
+
+        case PAXUI_LEAF_TYPE_SOURCE_OUTPUT:
+        case PAXUI_LEAF_TYPE_SINK_INPUT:
+            leaf->utf8_name = make_utf8_name (name);
+            if (leaf->client == G_MAXUINT32 &&
+                (md = paxui_find_module_for_index (leaf->paxui, leaf->module)))
+            {
+                leaf->short_name = make_owner_module_name (md->utf8_name, md->index);
+            }
+            else
+            {
+                leaf->short_name = make_short_name (leaf->utf8_name, 3);
+            }
+            break;
+
+        default:
+            leaf->utf8_name = g_utf8_make_valid (name, -1);
+            leaf->short_name = NULL;
+            break;
+    }
+}
+
+
+const gchar *
+paxui_pulse_channel_str (guint32 pos)
+{
+    switch (pos)
+    {
+        case PA_CHANNEL_POSITION_MONO:
+            return "M";
+
+        case PA_CHANNEL_POSITION_LEFT:
+            return "L";
+        case PA_CHANNEL_POSITION_RIGHT:
+            return "R";
+        case PA_CHANNEL_POSITION_CENTER:
+            return "C";
+
+        case PA_CHANNEL_POSITION_REAR_CENTER:
+            return "RC";
+        case PA_CHANNEL_POSITION_REAR_LEFT:
+            return "RL";
+        case PA_CHANNEL_POSITION_REAR_RIGHT:
+            return "RR";
+
+        case PA_CHANNEL_POSITION_SUBWOOFER:
+            return "SW";
+
+        case PA_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER:
+            return "FLC";
+        case PA_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER:
+            return "FRC";
+
+        case PA_CHANNEL_POSITION_SIDE_LEFT:
+            return "SL";
+        case PA_CHANNEL_POSITION_SIDE_RIGHT:
+            return "SR";
+
+        case PA_CHANNEL_POSITION_AUX0:
+            return "A0";
+        case PA_CHANNEL_POSITION_AUX1:
+            return "A1";
+        case PA_CHANNEL_POSITION_AUX2:
+            return "A2";
+        case PA_CHANNEL_POSITION_AUX3:
+            return "A3";
+        case PA_CHANNEL_POSITION_AUX4:
+            return "A4";
+        case PA_CHANNEL_POSITION_AUX5:
+            return "A5";
+        case PA_CHANNEL_POSITION_AUX6:
+            return "A6";
+        case PA_CHANNEL_POSITION_AUX7:
+            return "A7";
+        case PA_CHANNEL_POSITION_AUX8:
+            return "A8";
+        case PA_CHANNEL_POSITION_AUX9:
+            return "A9";
+        case PA_CHANNEL_POSITION_AUX10:
+            return "A10";
+        case PA_CHANNEL_POSITION_AUX11:
+            return "A11";
+        case PA_CHANNEL_POSITION_AUX12:
+            return "A12";
+        case PA_CHANNEL_POSITION_AUX13:
+            return "A13";
+        case PA_CHANNEL_POSITION_AUX14:
+            return "A14";
+        case PA_CHANNEL_POSITION_AUX15:
+            return "A15";
+        case PA_CHANNEL_POSITION_AUX16:
+            return "A16";
+        case PA_CHANNEL_POSITION_AUX17:
+            return "A17";
+        case PA_CHANNEL_POSITION_AUX18:
+            return "A18";
+        case PA_CHANNEL_POSITION_AUX19:
+            return "A19";
+        case PA_CHANNEL_POSITION_AUX20:
+            return "A20";
+        case PA_CHANNEL_POSITION_AUX21:
+            return "A21";
+        case PA_CHANNEL_POSITION_AUX22:
+            return "A22";
+        case PA_CHANNEL_POSITION_AUX23:
+            return "A23";
+        case PA_CHANNEL_POSITION_AUX24:
+            return "A24";
+        case PA_CHANNEL_POSITION_AUX25:
+            return "A25";
+        case PA_CHANNEL_POSITION_AUX26:
+            return "A26";
+        case PA_CHANNEL_POSITION_AUX27:
+            return "A27";
+        case PA_CHANNEL_POSITION_AUX28:
+            return "A28";
+        case PA_CHANNEL_POSITION_AUX29:
+            return "A29";
+        case PA_CHANNEL_POSITION_AUX30:
+            return "A30";
+        case PA_CHANNEL_POSITION_AUX31:
+            return "A31";
+
+        case PA_CHANNEL_POSITION_TOP_CENTER:
+            return "TC";
+
+        case PA_CHANNEL_POSITION_TOP_FRONT_LEFT:
+            return "TFL";
+        case PA_CHANNEL_POSITION_TOP_FRONT_RIGHT:
+            return "TFR";
+        case PA_CHANNEL_POSITION_TOP_FRONT_CENTER:
+            return "TFC";
+
+        case PA_CHANNEL_POSITION_TOP_REAR_LEFT:
+            return "TRL";
+        case PA_CHANNEL_POSITION_TOP_REAR_RIGHT:
+            return "TRR";
+        case PA_CHANNEL_POSITION_TOP_REAR_CENTER:
+            return "TRC";
+
+        default:
+            return "?";
+    }
+}
 
 static const gchar *
 event_fac_str (pa_subscription_event_type_t facility)
@@ -155,10 +339,14 @@ void
 paxui_pulse_volume_set (PaxuiLeaf *leaf)
 {
     pa_cvolume volume;
+    guint i;
 
-    DBG("set volume i:%u v:%u", leaf->index, leaf->level);
+    DBG("set volume i:%u", leaf->index);
+
     pa_cvolume_init (&volume);
-    pa_cvolume_set (&volume, leaf->n_chan, leaf->level);
+    volume.channels = leaf->n_chan;
+    for (i = 0; i < leaf->n_chan; i++)
+        volume.values[i] = leaf->levels[i];
 
     switch (leaf->leaf_type)
     {
@@ -202,7 +390,7 @@ paxui_pulse_move_source_output (Paxui *paxui, guint32 so_index, guint32 sc_index
 {
     GList *l;
 
-    DBG("move source_output:%u to sink:%u", so_index, sc_index);
+    DBG("move source_output:%u to source:%u", so_index, sc_index);
 
     for (l = paxui->source_outputs; l; l = l->next)
     {
@@ -262,6 +450,31 @@ paxui_pulse_move_sink_input (Paxui *paxui, guint32 si_index, guint32 sk_index)
 
 
 static void
+update_volume (PaxuiLeaf *leaf, const pa_cvolume *volume)
+{
+    guint i;
+
+    for (i = 0; i < leaf->n_chan; i++)
+        leaf->levels[i] = volume->values[i];
+}
+
+
+static void
+copy_volume_chmap (PaxuiLeaf *leaf, const pa_cvolume *volume, const pa_channel_map *chmap)
+{
+    guint i;
+
+    leaf->n_chan = volume->channels;
+    leaf->n_pos = chmap->channels;
+
+    leaf->levels = g_new (guint32, MAX (leaf->n_chan, leaf->n_pos));
+    leaf->positions = g_new (guint32, MAX (leaf->n_chan, leaf->n_pos));
+
+    for (i = 0; i < leaf->n_pos; i++)
+        leaf->positions[i] = chmap->map[i];
+}
+
+static void
 client_info_cb (pa_context *c, const pa_client_info *info, int eol, void *udata)
 {
     Paxui *paxui = udata;
@@ -275,8 +488,6 @@ client_info_cb (pa_context *c, const pa_client_info *info, int eol, void *udata)
     if ((client = paxui_find_client_for_index (paxui, info->index)))
     {
         TRACE("    have this");
-        g_free (client->name);
-        g_free (client->short_name);
     }
     else
     {
@@ -290,8 +501,7 @@ client_info_cb (pa_context *c, const pa_client_info *info, int eol, void *udata)
         paxui->clients = g_list_append (paxui->clients, client);
     }
 
-    client->name = g_strdup (info->name);
-    client->short_name = get_short_name (client->name, 3);
+    leaf_get_strings (client, info->name);
 
     if (client->outer == NULL)
     {
@@ -333,9 +543,9 @@ module_info_cb (pa_context *c, const pa_module_info *info, int eol, void *udata)
         module->index = info->index;
         module->paxui = paxui;
 
-        module->name = g_strdup (info->name);
-
         paxui->modules = g_list_append (paxui->modules, module);
+
+        leaf_get_strings (module, info->name);
 
         if ((lf = paxui_find_source_output_for_module (paxui, module->index))
             && lf->client == G_MAXUINT32)
@@ -343,7 +553,7 @@ module_info_cb (pa_context *c, const pa_module_info *info, int eol, void *udata)
             DBG("    so for this module already exists");
 
             g_free (lf->short_name);
-            lf->short_name = owner_module_name (info->name, info->index);
+            lf->short_name = make_owner_module_name (module->utf8_name, info->index);
             leaf_gui_update (lf);
         }
         if ((lf = paxui_find_sink_input_for_module (paxui, module->index))
@@ -352,7 +562,7 @@ module_info_cb (pa_context *c, const pa_module_info *info, int eol, void *udata)
             DBG("    si for this module already exists");
 
             g_free (lf->short_name);
-            lf->short_name = owner_module_name (info->name, info->index);
+            lf->short_name = make_owner_module_name (module->utf8_name, info->index);
             leaf_gui_update (lf);
         }
     }
@@ -389,40 +599,30 @@ source_output_info_cb (pa_context *c, const pa_source_output_info *info, int eol
     }
     else
     {
-        PaxuiLeaf *md;
-
         is_new = TRUE;
         source_output = paxui_leaf_new (PAXUI_LEAF_TYPE_SOURCE_OUTPUT);
         source_output->index = info->index;
         source_output->paxui = paxui;
 
-        source_output->name = g_strdup (info->name);
-        if (info->client == G_MAXUINT32 &&
-            (md = paxui_find_module_for_index (paxui, info->owner_module)))
-        {
-            source_output->short_name = owner_module_name (md->name, md->index);
-        }
-        else
-        {
-            source_output->short_name = get_short_name (source_output->name, 3);
-        }
+        source_output->module = info->owner_module;
+        source_output->client = info->client;
 
         source_output->vol_enabled = !paxui->volume_disabled && info->has_volume && info->volume_writable;
+        if (source_output->vol_enabled)
+            copy_volume_chmap (source_output, &info->volume, &info->channel_map);
 
         paxui->source_outputs = g_list_append (paxui->source_outputs, source_output);
 
     }
 
-    source_output->module = info->owner_module;
-    source_output->client = info->client;
     source_output->source = info->source;
+
+    leaf_get_strings (source_output, info->name);
 
     if (source_output->vol_enabled)
     {
-        source_output->level = pa_cvolume_avg (&info->volume);
-        source_output->n_chan = info->volume.channels;
+        update_volume (source_output, &info->volume);
         source_output->muted = !!info->mute;
-        DBG("    n:%u v:%u m:%d", source_output->n_chan, source_output->level, source_output->muted);
     }
 
     if (source_output->client != G_MAXUINT32)
@@ -486,21 +686,22 @@ source_info_cb (pa_context *c, const pa_source_info *info, int eol, void *udata)
         source->index = info->index;
         source->paxui = paxui;
 
-        source->name = g_strdup (info->name);
+        source->module = info->owner_module;
+        source->monitor = info->monitor_of_sink;
+
         source->vol_enabled = !paxui->volume_disabled;
+        if (source->vol_enabled)
+            copy_volume_chmap (source, &info->volume, &info->channel_map);
 
         paxui->sources = g_list_append (paxui->sources, source);
-    }
 
-    source->module = info->owner_module;
-    source->monitor = info->monitor_of_sink;
+        leaf_get_strings (source, info->name);
+    }
 
     if (source->vol_enabled)
     {
-        source->level = pa_cvolume_avg (&info->volume);
-        source->n_chan = info->volume.channels;
+        update_volume (source, &info->volume);
         source->muted = !!info->mute;
-        DBG("    n:%u v:%u m:%d", source->n_chan, source->level, source->muted);
     }
 
     if (is_new)
@@ -539,39 +740,29 @@ sink_input_info_cb (pa_context *c, const pa_sink_input_info *info, int eol, void
     }
     else
     {
-        PaxuiLeaf *md;
-
         is_new = TRUE;
         sink_input = paxui_leaf_new (PAXUI_LEAF_TYPE_SINK_INPUT);
         sink_input->index = info->index;
         sink_input->paxui = paxui;
 
-        sink_input->name = g_strdup (info->name);
-        if (info->client == G_MAXUINT32 &&
-            (md = paxui_find_module_for_index (paxui, info->owner_module)))
-        {
-            sink_input->short_name = owner_module_name (md->name, md->index);
-        }
-        else
-        {
-            sink_input->short_name = get_short_name (sink_input->name, 3);
-        }
+        sink_input->module = info->owner_module;
+        sink_input->client = info->client;
 
         sink_input->vol_enabled = !paxui->volume_disabled && info->has_volume && info->volume_writable;
+        if (sink_input->vol_enabled)
+            copy_volume_chmap (sink_input, &info->volume, &info->channel_map);
 
         paxui->sink_inputs = g_list_append (paxui->sink_inputs, sink_input);
     }
 
-    sink_input->module = info->owner_module;
-    sink_input->client = info->client;
     sink_input->sink = info->sink;
+
+    leaf_get_strings (sink_input, info->name);
 
     if (sink_input->vol_enabled)
     {
-        sink_input->level = pa_cvolume_avg (&info->volume);
-        sink_input->n_chan = info->volume.channels;
+        update_volume (sink_input, &info->volume);
         sink_input->muted = !!info->mute;
-        DBG("    n:%u v:%u m:%d", sink_input->n_chan, sink_input->level, sink_input->muted);
     }
 
     if (sink_input->client != G_MAXUINT32)
@@ -635,22 +826,22 @@ sink_info_cb (pa_context *c, const pa_sink_info *info, int eol, void *udata)
         sink->index = info->index;
         sink->paxui = paxui;
 
-        sink->name = g_strdup (info->name);
+        sink->module = info->owner_module;
+        sink->monitor = info->monitor_source;
+
+        leaf_get_strings (sink, info->name);
 
         sink->vol_enabled = !paxui->volume_disabled;
+        if (sink->vol_enabled)
+            copy_volume_chmap (sink, &info->volume, &info->channel_map);
 
         paxui->sinks = g_list_append (paxui->sinks, sink);
     }
 
-    sink->module = info->owner_module;
-    sink->monitor = info->monitor_source;
-
     if (sink->vol_enabled)
     {
-        sink->level = pa_cvolume_avg (&info->volume);
-        sink->n_chan = info->volume.channels;
+        update_volume (sink, &info->volume);
         sink->muted = !!info->mute;
-        DBG("    n:%u v:%u m:%d", sink->n_chan, sink->level, sink->muted);
     }
 
     if (is_new)
@@ -802,7 +993,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 sc = paxui_find_source_for_index (paxui, idx);
                 if (sc)
                 {
-                    paxui_gui_remove_from_column (paxui->sources, sc);
                     paxui->sources = g_list_remove (paxui->sources, sc);
 
                     paxui_leaf_destroy (sc);
@@ -818,7 +1008,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 sk = paxui_find_sink_for_index (paxui, idx);
                 if (sk)
                 {
-                    paxui_gui_remove_from_column (paxui->sinks, sk);
                     paxui->sinks = g_list_remove (paxui->sinks, sk);
                     paxui_leaf_destroy (sk);
 
@@ -833,7 +1022,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 so = paxui_find_source_output_for_index (paxui, idx);
                 if (so)
                 {
-                    paxui_gui_remove_from_column (paxui->source_outputs, so);
                     paxui->source_outputs = g_list_remove (paxui->source_outputs, so);
                     paxui_leaf_destroy (so);
 
@@ -848,7 +1036,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 si = paxui_find_sink_input_for_index (paxui, idx);
                 if (si)
                 {
-                    paxui_gui_remove_from_column (paxui->sink_inputs, si);
                     paxui->sink_inputs = g_list_remove (paxui->sink_inputs, si);
                     paxui_leaf_destroy (si);
 
@@ -863,7 +1050,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 cl = paxui_find_client_for_index (paxui, idx);
                 if (cl)
                 {
-                    paxui_gui_remove_from_column (paxui->acams, cl);
                     paxui->acams = g_list_remove (paxui->acams, cl);
                     paxui->clients = g_list_remove (paxui->clients, cl);
                     paxui_leaf_destroy (cl);
@@ -879,7 +1065,6 @@ event_remove (pa_context *c, pa_subscription_event_type_t facility, uint32_t idx
                 md = paxui_find_module_for_index (paxui, idx);
                 if (md)
                 {
-                    paxui_gui_remove_from_column (paxui->acams, md);
                     paxui->acams = g_list_remove (paxui->acams, md);
                     paxui->modules = g_list_remove (paxui->modules, md);
                     paxui_leaf_destroy (md);

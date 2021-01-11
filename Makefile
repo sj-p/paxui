@@ -10,21 +10,29 @@ all_objects = src/paxui.o \
 			  src/paxui-pulse.o \
 			  src/paxui-gui.o \
 			  src/paxui-actions.o \
-			  src/paxui-icons.o
+			  src/paxui-data.o
 
 module_hdrs = src/paxui.h \
 			  src/paxui-pulse.h \
 			  src/paxui-gui.h \
 			  src/paxui-actions.h \
-			  src/paxui-icons.h
+			  src/paxui-data.h
 
-all_icons = png/logo.png \
-			png/source.png \
-			png/sink.png \
-			png/view.png \
-			png/source-dark.png \
-			png/sink-dark.png \
-			png/view-dark.png
+all_icons = data/logo.png \
+			data/source.png \
+			data/source-dark.png \
+			data/sink.png \
+			data/sink-dark.png \
+			data/gear.png \
+			data/gear-dark.png \
+			data/muted.png \
+			data/muted-dark.png \
+			data/locked.png \
+			data/locked-dark.png \
+			data/unlocked.png \
+			data/unlocked-dark.png \
+			data/switch.png \
+			data/switch-dark.png
 
 
 all:	paxui
@@ -35,15 +43,15 @@ paxui:	$(all_objects)
 
 clean:
 	@echo CLEAN
-	@rm -f src/*.o src/paxui-icons.c src/paxui-icons.h paxui
+	@rm -f src/*.o src/paxui-data.c src/paxui-data.h paxui
 
-src/paxui-icons.h: src/paxui-icons.xml $(all_icons)
+src/paxui-data.h: src/paxui-data.xml $(all_icons) data/internal.css
 	@echo $@
-	@glib-compile-resources --sourcedir=png --target=src/paxui-icons.h --generate-header src/paxui-icons.xml
+	@glib-compile-resources --sourcedir=data --target=src/paxui-data.h --generate-header src/paxui-data.xml
 
-src/paxui-icons.c: src/paxui-icons.xml $(all_icons)
+src/paxui-data.c: src/paxui-data.xml $(all_icons) data/internal.css
 	@echo $@
-	@glib-compile-resources --sourcedir=png --generate-source src/paxui-icons.xml
+	@glib-compile-resources --sourcedir=data --generate-source src/paxui-data.xml
 
 $(all_objects): %.o: %.c %.h $(module_hdrs)
 	@echo $@
